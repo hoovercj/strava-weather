@@ -1,0 +1,25 @@
+{
+  "name": "strava-weather",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "2.9.2",
+    "@types/node": "10.3.6",
+    "@types/inquirer": "0.0.42"
+  },
+  "dependencies": {
+    "request": "2.87.0",
+    "request-promise-native": "1.0.5",
+    "strava-v3": "1.14.0",
+    "strava-v3-cli-authenticator": "0.0.1",
+    "inquirer": "6.0.0",
+    "azure-storage": "2.10.0",
+    "dotenv": "6.0.0"
+  }
+}
