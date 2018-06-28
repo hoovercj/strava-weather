@@ -1,36 +1,16 @@
-// TODO: Models need to use entity generators to interact with storage
-
-import { AuthToken, UserId, ActivityId } from './models';
+import { AuthToken, UserId, ActivityId } from '../models';
+import {
+    PartitionKeys,
+    TokenToUserIdModel, TokenToUserIdEntity,
+    UserIdToTokenModel, UserIdToTokenEntity,
+    ProcessedActivityModel, ProcessedActivityEntity,
+} from './models';
 
 import * as azure from 'azure-storage';
 const credentials = azure.generateDevelopmentStorageCredentials();
 const storage = azure.createTableService(credentials);
 
 const TABLE_NAME = 'StravaWeather';
-
-enum PartitionKeys {
-    'user_id_to_token',
-    'token_to_user_id',
-    'processed_activity',
-}
-
-class UserIdToTokenModel {
-    PartitionKey: PartitionKeys = PartitionKeys.user_id_to_token;
-    RowKey: UserId;
-    Token: AuthToken;
-}
-
-class TokenToUserIdModel {
-    PartitionKey: PartitionKeys = PartitionKeys.token_to_user_id;
-    RowKey: AuthToken;
-    UserId: UserId;
-}
-
-class ProcessedActivityModel {
-    PartitionKey: PartitionKeys = PartitionKeys.processed_activity;
-    RowKey: ActivityId;
-    UserId: UserId;
-}
 
 export interface ErrorResultResponse<T> {
     error: Error;
@@ -59,9 +39,11 @@ export class DataProvider {
     }
 
     private async queryEntities<T>(query: azure.TableQuery, continuationToken?: azure.TableService.TableContinuationToken) {
-        console.log(`Query Entities ${continuationToken && '(continued)'}:\n${query.toQueryObject()}`);
+        console.log(`Query Entities ${(continuationToken && '(continued)') || ''}:\n${JSON.stringify(query.toQueryObject())}`);
         let result = await new Promise<ErrorResultResponse<azure.TableService.QueryEntitiesResult<T>>>((resolve, reject) => {
+
             storage.queryEntities<T>(TABLE_NAME, query, continuationToken, null, (error, result, response) => {
+                console.log(`Query Entities Reults:\n${JSON.stringify(result.entries)}`);
                 resolve({error, result, response});
             });
         });
@@ -91,60 +73,50 @@ export class DataProvider {
 
     public getTokenForUserId = async (userId: UserId): Promise<AuthToken> => {
         console.log(`getTokenForUserId: ${userId}`);
-        const response = await this.retrieveEntity<UserIdToTokenModel>(PartitionKeys.user_id_to_token, String(userId));
+        const response = await this.retrieveEntity<UserIdToTokenEntity>(PartitionKeys.UserIdToToken, String(userId));
 
         return response
             && response.result
-            && response.result.Token;
+            && UserIdToTokenModel.fromEntity(response.result).token;
     }
 
     public getUserIdForToken = async (token: AuthToken): Promise<UserId> => {
         console.log(`getUserIdForToken: ${token}`);
-        const response = await this.retrieveEntity<TokenToUserIdModel>(PartitionKeys.token_to_user_id, token);
+        const response = await this.retrieveEntity<TokenToUserIdEntity>(PartitionKeys.TokenToUserId, token);
 
         return response
             && response.result
-            && response.result.UserId;
+            && TokenToUserIdModel.fromEntity(response.result).userId;
     }
 
     public getProcessedActivities = async (userId: UserId): Promise<ActivityId[]> => {
         console.log(`getProcessedActivities: ${userId}`);
         const query = new azure.TableQuery()
-            .where('UserId eq ?', userId);
+            .where('UserId eq ?', userId)
+            .and('PartitionKey eq ?', PartitionKeys.ProcessedActivity);
 
-        const response = await this.queryEntities<ProcessedActivityModel>(query);
+        const response = await this.queryEntities<ProcessedActivityEntity>(query);
         return response
             && response.result
             && response.result.entries
-            && response.result.entries.map(model => { return model.RowKey });
+            && response.result.entries
+                .map(ProcessedActivityModel.fromEntity)
+                .map(model => model.activityId);
     }
 
     public storeUserIdForToken = async (token: AuthToken, userId: UserId): Promise<void> => {
         console.log(`storeUserIdForToken:\nuserId: ${userId}, token: ${token}`);
-        const tokenToUserId: TokenToUserIdModel = {
-            PartitionKey: PartitionKeys.token_to_user_id,
-            RowKey: token,
-            UserId: userId,
-        };
 
-        const userIdToToken: UserIdToTokenModel = {
-            PartitionKey: PartitionKeys.token_to_user_id,
-            RowKey: userId,
-            Token: token,
-        };
+        const tokenToUserIdEntity = TokenToUserIdModel.toEntity(token, userId);
+        const userIdToTokenEntity = UserIdToTokenModel.toEntity(userId, token);
 
-        await this.storeEntity(tokenToUserId)
-        await this.storeEntity(userIdToToken)
+        await this.storeEntity(tokenToUserIdEntity)
+        await this.storeEntity(userIdToTokenEntity)
     }
 
     public storeProcessedActivity = async (activityId: ActivityId, userId: UserId): Promise<void> => {
         console.log(`storeProcessedActivity:\nuserId: ${userId}, activityId: ${activityId}`);
-        const activityModel: ProcessedActivityModel = {
-            PartitionKey: PartitionKeys.processed_activity,
-            RowKey: activityId,
-            UserId: userId,
-        }
-
-        await this.storeEntity(activityModel);
+        const activityEntity = ProcessedActivityModel.toEntity(activityId, userId);
+        await this.storeEntity(activityEntity);
     }
 }

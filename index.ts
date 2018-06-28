@@ -21,18 +21,18 @@ import * as inquirer from 'inquirer';
 import { Question } from 'inquirer';
 import { ActivityId, AuthToken, UserId } from './models';
 
-import { DataProvider } from './dataProvider';
+import { DataProvider } from './dataProvider/dataProvider';
 
 const dataProvider = new DataProvider();
 dataProvider.init();
 
 const DARK_SKY_API_KEY = process.env.DARK_SKY_API_KEY;
 
-let userToken: AuthToken;
-let userId: UserId;
+let CURRENT_TOKEN: AuthToken;
+let CURRENT_USER_ID: UserId;
 
 const getUserToken = async (): Promise<AuthToken> => {
-    if (!userToken) {
+    if (!CURRENT_TOKEN) {
 
         const token = await authorize({
             clientId: process.env.STRAVA_CLIENT_ID,
@@ -42,20 +42,20 @@ const getUserToken = async (): Promise<AuthToken> => {
         }).catch(console.error);
 
         if (token) {
-            userToken = token;
+            CURRENT_TOKEN = token;
         }
     }
 
-    return userToken;
+    return CURRENT_TOKEN;
 }
 
 const getUserId = async (): Promise<UserId> => {
-    if (!userId) {
+    if (!CURRENT_USER_ID) {
         const token = await getUserToken();
-        userId = await getUserIdForToken(token);
+        CURRENT_USER_ID = await getUserIdForToken(token);
     }
 
-    return userId;
+    return CURRENT_USER_ID;
 }
 
 const getUserIdForToken = async (token: AuthToken): Promise<UserId> => {
@@ -105,15 +105,16 @@ const getDetailedActivity = async (token: AuthToken, activityId: ActivityId): Pr
 }
 
 const updateActivity = async (token: AuthToken, userId: UserId, activityId: ActivityId, update: Strava.UpdatableActivity): Promise<void> => {
+    console.log(`Update activity:\nToken: ${token}\nUserId: ${userId}\nactivityId: ${activityId}\nUpdate: ${JSON.stringify(update)}`);
+
     const activitiesApi = new Strava.ActivitiesApi();
     activitiesApi.accessToken = token;
     const response = await activitiesApi.updateActivityById(activityId, update)
         .catch(console.error);
 
-    // TODO: fix dataProvider
-    // if (response) {
-    //     await dataProvider.storeProcessedActivity(activityId, userId);
-    // }
+    if (response) {
+        await dataProvider.storeProcessedActivity(activityId, userId);
+    }
 }
 
 const getWeatherFromDetailedRun = async (run: Strava.DetailedActivity): Promise<WeatherSnapshot> => {
@@ -201,8 +202,16 @@ function getRoundedString(value: number | string, decimals: number): string {
 // STARTREGION Prompts
 
 
-const startPrompt = async () => {
+const listProcessedActivities = async () => {
+    const userId = await getUserId();
+    const processedActivities = await dataProvider.getProcessedActivities(userId);
+    console.log('Processed Activities:');
+    processedActivities.map(console.log);
+}
+
+const startUpdateActivitiesPrompt = async () => {
     const token = await getUserToken();
+    const userId = await getUserId();
 
     if (!token) {
         console.log('Unable to authenticate.');
@@ -266,22 +275,9 @@ const startPrompt = async () => {
             .catch(console.error)
     }
 
-    // startPrompt();
+    startUpdateActivitiesPrompt();
 }
 
 // ENDREGION Prompts
 
-
-// const addWeatherToLatestActivity = async (token: AuthToken) => {
-//     await storeUserForToken(token);
-//     const userActivities = await getActivitiesForToken(token);
-//     const mostRecentActivitySummary = userActivities[0];
-//     const mostRecentActivityDetails = await getDetailedActivity(token, mostRecentActivitySummary.id);
-//     const weatherDetails = await getWeatherFromDetailedRun(mostRecentActivityDetails);
-//     const comment = getCommentFromWeather(weatherDetails);
-//     const newComment = [mostRecentActivityDetails.description, comment].join('\n\n')
-//     const updatedActivity: Strava.UpdatableActivity = { description: newComment };
-//     await updateActivity(token, mostRecentActivityDetails.id, updatedActivity);
-// }
-
-startPrompt();
+startUpdateActivitiesPrompt();

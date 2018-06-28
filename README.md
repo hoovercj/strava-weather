@@ -23,7 +23,6 @@ node ./index.js
 
 ## To-do:
 
-* [] Fix the database logic (apparently I have to create entity objects)
 * [] Polish the CLI so it is a useful standalone tool
 * [] Create Azure Functions or simple node app
     - Hosted auth callback that stores authorized users
