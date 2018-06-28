@@ -23,7 +23,6 @@ node ./index.js
 
 ## To-do:
 
-* [] Polish the CLI so it is a useful standalone tool
 * [] Create Azure Functions or simple node app
     - Hosted auth callback that stores authorized users
     - On a timer, for each authorized user, fetch the new runs and update them

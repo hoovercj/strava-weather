@@ -167,14 +167,14 @@ const getUpdatedDescriptionForActivityId = async (token: AuthToken, activityId: 
         .catch(console.error);
     if (!weatherDetails) return;
 
-    const description = getDescriptionFromWeather(weatherDetails);
+    const weatherDescription = getDescriptionFromWeather(weatherDetails);
 
     // If the comment already contains the weather information, don't add it again
-    if (mostRecentActivityDetails.description && mostRecentActivityDetails.description.indexOf(description) >= 0) {
+    if (mostRecentActivityDetails.description && mostRecentActivityDetails.description.indexOf("Weather Summary") >= 0) {
         return mostRecentActivityDetails.description;
     }
 
-    const newComment = [mostRecentActivityDetails.description, description].join('\n\n').trim();
+    const newComment = [mostRecentActivityDetails.description, weatherDescription].join('\n\n').trim();
 
     return newComment;
 }
@@ -225,7 +225,11 @@ const startUpdateActivitiesPrompt = async () => {
         return;
     }
 
-    const activityOptions = userActivities.map(activity => {
+    const processedActivities = await dataProvider.getProcessedActivities(userId);
+
+    const unprocessedUserActivities = userActivities.filter(activity => processedActivities.indexOf(activity.id) < 0);
+
+    const activityOptions = unprocessedUserActivities.map(activity => {
         return {
             name: `${activity.startDateLocal} - ${activity.name}`,
             value: activity.id,
