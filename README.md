@@ -23,9 +23,25 @@ node ./index.js
 
 ## To-do:
 
-* [] Create Azure Functions or simple node app
-    - Hosted auth callback that stores authorized users
-    - On a timer, for each authorized user, fetch the new runs and update them
-* [] Get approved for webhook access
-    - Instead of running on a timer, simply process new runs as they come in
+* [] Create node api + web site
+    - [] Web api to handle auth + fetching/posting data
+        - [] Handle auth for user
+        - [] Get users activities (including information about already-processed activities)
+        - [] Suggest new description for an activity
+        - [] Update description for an activity
+    - [] Web site
+        - [] Auth user
+        - [] List activities
+        - [] Get suggested description for activity
+        - [] Allow user to edit and then post the new description
+    - [] Get approved for webhook access
+        - [] Allow users to "subscribe" to automatic updates
+        - [] Webhook receives event for each activity. If user is subscribed, automatically update their comment
+        - [] Allow users to unsubscribe
+* [] Stretch Goals
+    - [] User Configuration
+        - [] Language
+        - [] Units (metric, si, both)
+        - [] Fields
+            - Either toggling them on/off OR providing their own template with placeholders, etc.
 
